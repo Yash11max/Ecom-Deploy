@@ -80,38 +80,38 @@ spec:
     spec:
       serviceAccountName: default
       containers:
-        - name: server
-          image: harishnshetty/checkoutservice:latest
-          ports:
-          - containerPort: 5050
-          readinessProbe:
-            exec:
-              command: ["/bin/grpc_health_probe", "-addr=:5050"]
-          livenessProbe:
-            exec:
-              command: ["/bin/grpc_health_probe", "-addr=:5050"]
-          env:
-          - name: PORT
-            value: "5050"
-          - name: PRODUCT_CATALOG_SERVICE_ADDR
-            value: "productcatalogservice:3550"
-          - name: SHIPPING_SERVICE_ADDR
-            value: "shippingservice:50051"
-          - name: PAYMENT_SERVICE_ADDR
-            value: "paymentservice:50051"
-          - name: EMAIL_SERVICE_ADDR
-            value: "emailservice:5000"
-          - name: CURRENCY_SERVICE_ADDR
-            value: "currencyservice:7000"
-          - name: CART_SERVICE_ADDR
-            value: "cartservice:7070"
-          resources:
-            requests:
-              cpu: 100m
-              memory: 64Mi
-            limits:
-              cpu: 200m
-              memory: 128Mi
+      - name: server
+        image: shankyash/checkoutservice:latest
+        ports:
+        - containerPort: 5050
+        readinessProbe:
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:5050"]
+        livenessProbe:
+          exec:
+            command: ["/bin/grpc_health_probe", "-addr=:5050"]
+        env:
+        - name: PORT
+          value: "5050"
+        - name: PRODUCT_CATALOG_SERVICE_ADDR
+          value: "productcatalogservice:3550"
+        - name: SHIPPING_SERVICE_ADDR
+          value: "shippingservice:50051"
+        - name: PAYMENT_SERVICE_ADDR
+          value: "paymentservice:50051"
+        - name: EMAIL_SERVICE_ADDR
+          value: "emailservice:5000"
+        - name: CURRENCY_SERVICE_ADDR
+          value: "currencyservice:7000"
+        - name: CART_SERVICE_ADDR
+          value: "cartservice:7070"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
 ---
 apiVersion: v1
 kind: Service
@@ -143,7 +143,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: harishnshetty/recommendationservice:latest
+        image: shankyash/recommendationservice:latest
         ports:
         - containerPort: 8080
         readinessProbe:
@@ -199,62 +199,54 @@ spec:
     spec:
       serviceAccountName: default
       containers:
-        - name: server
-          image: harishnshetty/frontend:latest
-          ports:
-          - containerPort: 8080
-          readinessProbe:
-            initialDelaySeconds: 10
-            httpGet:
-              path: "/_healthz"
-              port: 8080
-              httpHeaders:
-              - name: "Cookie"
-                value: "shop_session-id=x-readiness-probe"
-          livenessProbe:
-            initialDelaySeconds: 10
-            httpGet:
-              path: "/_healthz"
-              port: 8080
-              httpHeaders:
-              - name: "Cookie"
-                value: "shop_session-id=x-liveness-probe"
-          env:
-          - name: PORT
-            value: "8080"
-          - name: PRODUCT_CATALOG_SERVICE_ADDR
-            value: "productcatalogservice:3550"
-          - name: CURRENCY_SERVICE_ADDR
-            value: "currencyservice:7000"
-          - name: CART_SERVICE_ADDR
-            value: "cartservice:7070"
-          - name: RECOMMENDATION_SERVICE_ADDR
-            value: "recommendationservice:8080"
-          - name: SHIPPING_SERVICE_ADDR
-            value: "shippingservice:50051"
-          - name: CHECKOUT_SERVICE_ADDR
-            value: "checkoutservice:5050"
-          - name: AD_SERVICE_ADDR
-            value: "adservice:9555"
-          - name: SHOPPING_ASSISTANT_SERVICE_ADDR
-            value: "shoppingassistantservice:80"  
-          # # ENV_PLATFORM: One of: local, gcp, aws, azure, onprem, alibaba
-          # # When not set, defaults to "local" unless running in GKE, otherwies auto-sets to gcp
-          # - name: ENV_PLATFORM
-          #   value: "aws"
-          - name: ENABLE_PROFILER
-            value: "0"
-          # - name: CYMBAL_BRANDING
-          #   value: "true"
-          # - name: FRONTEND_MESSAGE
-          #   value: "Replace this with a message you want to display on all pages."
-          resources:
-            requests:
-              cpu: 100m
-              memory: 64Mi
-            limits:
-              cpu: 200m
-              memory: 128Mi
+      - name: server
+        image: shankyash/frontend:latest
+        ports:
+        - containerPort: 8080
+        readinessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: "/_healthz"
+            port: 8080
+            httpHeaders:
+            - name: "Cookie"
+              value: "shop_session-id=x-readiness-probe"
+        livenessProbe:
+          initialDelaySeconds: 10
+          httpGet:
+            path: "/_healthz"
+            port: 8080
+            httpHeaders:
+            - name: "Cookie"
+              value: "shop_session-id=x-liveness-probe"
+        env:
+        - name: PORT
+          value: "8080"
+        - name: PRODUCT_CATALOG_SERVICE_ADDR
+          value: "productcatalogservice:3550"
+        - name: CURRENCY_SERVICE_ADDR
+          value: "currencyservice:7000"
+        - name: CART_SERVICE_ADDR
+          value: "cartservice:7070"
+        - name: RECOMMENDATION_SERVICE_ADDR
+          value: "recommendationservice:8080"
+        - name: SHIPPING_SERVICE_ADDR
+          value: "shippingservice:50051"
+        - name: CHECKOUT_SERVICE_ADDR
+          value: "checkoutservice:5050"
+        - name: AD_SERVICE_ADDR
+          value: "adservice:9555"
+        - name: SHOPPING_ASSISTANT_SERVICE_ADDR
+          value: "shoppingassistantservice:80"
+        - name: ENABLE_PROFILER
+          value: "0"
+        resources:
+          requests:
+            cpu: 100m
+            memory: 64Mi
+          limits:
+            cpu: 200m
+            memory: 128Mi
 ---
 apiVersion: v1
 kind: Service
@@ -299,7 +291,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: harishnshetty/paymentservice:latest
+        image: shankyash/paymentservice:latest
         ports:
         - containerPort: 50051
         env:
@@ -351,7 +343,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: harishnshetty/productcatalogservice:latest
+        image: shankyash/productcatalogservice:latest
         ports:
         - containerPort: 3550
         env:
@@ -403,7 +395,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: harishnshetty/cartservice:latest
+        image: shankyash/cartservice:latest
         ports:
         - containerPort: 7070
         env:
@@ -467,7 +459,7 @@ spec:
               - ALL
           privileged: false
           readOnlyRootFilesystem: true
-        image: harishnshetty/loadgenerator:latest
+        image: shankyash/loadgenerator:latest
         env:
         - name: FRONTEND_ADDR
           value: "frontend:80"
@@ -498,7 +490,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: harishnshetty/currencyservice:latest
+        image: shankyash/currencyservice:latest
         ports:
         - name: grpc
           containerPort: 7000
@@ -550,7 +542,7 @@ spec:
       serviceAccountName: default
       containers:
       - name: server
-        image: harishnshetty/shippingservice:latest
+        image: shankyash/shippingservice:latest
         ports:
         - containerPort: 50051
         env:
