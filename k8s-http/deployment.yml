@@ -656,7 +656,7 @@ spec:
       terminationGracePeriodSeconds: 5
       containers:
       - name: server
-        image: harishnshetty/adservice:latest
+        image: shankyash/adservice:latest
         ports:
         - containerPort: 9555
         env:
