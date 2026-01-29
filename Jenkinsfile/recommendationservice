@@ -32,9 +32,9 @@ pipeline {
             steps {
                 dir('src/recommendationservice') {
                     sh '''
-                        command -v python
-                        python --version
-                        python -m venv .venv
+                        command -v python3
+                        python3 --version
+                        python3 -m venv .venv
                         . .venv/bin/activate
                         pip install --upgrade pip
                     '''
@@ -60,7 +60,7 @@ pipeline {
             }
         }
 
-        /* ================= SONARQUBE ================= */
+        /* ================= SAST: SONARQUBE ================= */
         stage('SonarQube Analysis') {
             steps {
                 dir('src/recommendationservice') {
@@ -70,7 +70,8 @@ pipeline {
                               -Dsonar.projectKey=recommendationservice \
                               -Dsonar.projectName=recommendationservice \
                               -Dsonar.sources=. \
-                              -Dsonar.language=py
+                              -Dsonar.language=py \
+                              -Dsonar.python.version=3.11
                         '''
                     }
                 }
@@ -97,7 +98,7 @@ pipeline {
             }
         }
 
-        /* ================= SAFETY ================= */
+        /* ================= SCA: SAFETY ================= */
         stage('Safety Dependency Scan') {
             steps {
                 dir('src/recommendationservice') {
@@ -197,7 +198,14 @@ pipeline {
                     <p><b>URL:</b> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
                 """,
                 to: 'shankhwalkary11@gmail.com',
-                mimeType: 'text/html'
+                mimeType: 'text/html',
+                attachmentsPattern: '''
+                    src/recommendationservice/bandit-report.json,
+                    src/recommendationservice/safety-report.json,
+                    src/recommendationservice/trivy-fs-report.txt,
+                    src/recommendationservice/trivy-image.json,
+                    src/recommendationservice/trivy-image.txt
+                '''
             )
         }
     }
