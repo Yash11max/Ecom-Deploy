@@ -25,21 +25,25 @@ pipeline {
         }
 
         // --- SAST: Bandit ---
-        stage("Bandit Security Scan") {
-            steps {
-                dir('src/emailservice') {
-                    sh '''
-                    python3 -m pip install --user --upgrade bandit
-                    bandit -r . -f json -o bandit-report.json || true
-                    '''
-                }
-            }
-            post {
-                always {
-                    archiveArtifacts 'src/emailservice/bandit-report.json'
-                }
-            }
+   stage('Bandit Security Scan') {
+    steps {
+        dir('src/emailservice') {
+            sh '''
+                python3 -m venv .venv
+                . .venv/bin/activate
+                pip install --upgrade pip
+                pip install bandit
+                bandit -r . -f json -o bandit-report.json || true
+            '''
         }
+    }
+    post {
+        always {
+            archiveArtifacts artifacts: 'src/emailservice/bandit-report.json', allowEmptyArchive: true
+        }
+    }
+}
+
 
         // --- SAST: SonarQube ---
         stage("SonarQube Analysis") {
