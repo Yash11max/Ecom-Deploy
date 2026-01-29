@@ -9,6 +9,7 @@ pipeline {
         SCANNER_HOME = tool 'sonar-scanner'
         DOCKER_NAME  = 'shankyash/emailservice'
         IMAGE_NAME   = 'emailservice'
+        PATH = "$HOME/.pyenv/shims:$HOME/.pyenv/bin:$PATH"
     }
 
     stages {
@@ -27,12 +28,14 @@ pipeline {
             }
         }
 
-        /* ================= PYTHON VENV ================= */
-        stage('Setup Python Virtualenv') {
+        /* ================= PYTHON SETUP ================= */
+        stage('Setup Python venv') {
             steps {
                 dir('src/emailservice') {
                     sh '''
-                        python3 -m venv .venv
+                        command -v python || pyenv global 3.11.9
+                        python --version
+                        python -m venv .venv
                         . .venv/bin/activate
                         pip install --upgrade pip
                     '''
@@ -40,7 +43,7 @@ pipeline {
             }
         }
 
-        /* ================= BANDIT ================= */
+        /* ================= SAST: BANDIT ================= */
         stage('Bandit Security Scan') {
             steps {
                 dir('src/emailservice') {
@@ -58,32 +61,35 @@ pipeline {
             }
         }
 
-        /* ================= SONAR ================= */
+        /* ================= SAST: SONARQUBE ================= */
         stage('SonarQube Analysis') {
             steps {
                 dir('src/emailservice') {
                     withSonarQubeEnv('sonar-server') {
                         sh '''
-                        $SCANNER_HOME/bin/sonar-scanner \
-                          -Dsonar.projectKey=emailservice \
-                          -Dsonar.projectName=emailservice \
-                          -Dsonar.sources=. \
-                          -Dsonar.language=py
+                            $SCANNER_HOME/bin/sonar-scanner \
+                              -Dsonar.projectKey=emailservice \
+                              -Dsonar.projectName=emailservice \
+                              -Dsonar.sources=. \
+                              -Dsonar.language=py
                         '''
                     }
                 }
             }
         }
 
+        /* ================= QUALITY GATE ================= */
         stage('Quality Gate') {
             steps {
-                timeout(time: 3, unit: 'MINUTES') {
-                    waitForQualityGate abortPipeline: true
+                script {
+                    timeout(time: 3, unit: 'MINUTES') {
+                        waitForQualityGate abortPipeline: true
+                    }
                 }
             }
         }
 
-        /* ================= INSTALL DEPS ================= */
+        /* ================= DEPENDENCIES ================= */
         stage('Install Dependencies') {
             steps {
                 dir('src/emailservice') {
@@ -95,7 +101,7 @@ pipeline {
             }
         }
 
-        /* ================= SAFETY ================= */
+        /* ================= SCA: SAFETY ================= */
         stage('Safety Dependency Scan') {
             steps {
                 dir('src/emailservice') {
@@ -118,12 +124,12 @@ pipeline {
             steps {
                 dir('src/emailservice') {
                     sh '''
+                        command -v trivy || exit 0
                         trivy fs . \
-                          --severity CRITICAL,HIGH \
+                          --severity HIGH,CRITICAL \
                           --exit-code 0 \
                           --scanners vuln,misconfig,secret \
-                          -f table \
-                          -o trivy-fs-report.txt
+                          > trivy-fs-report.txt
                     '''
                 }
             }
@@ -141,9 +147,8 @@ pipeline {
                     script {
                         env.IMAGE_TAG = "${DOCKER_NAME}:${BUILD_NUMBER}"
                         sh '''
-                            docker rmi -f emailservice || true
-                            docker build -t emailservice .
-                            docker tag emailservice ${IMAGE_TAG}
+                            docker build -t ${IMAGE_NAME} .
+                            docker tag ${IMAGE_NAME} ${IMAGE_TAG}
                         '''
                     }
                 }
@@ -154,11 +159,11 @@ pipeline {
         stage('Push Docker Image') {
             steps {
                 dir('src/emailservice') {
-                    withCredentials([string(credentialsId: 'docker-cred', variable: 'DOCKER_PASS')]) {
+                    withCredentials([string(credentialsId: 'docker-cred', variable: 'DOCKER_PWD')]) {
                         sh '''
-                            docker login -u shankyash -p ${DOCKER_PASS}
+                            echo "${DOCKER_PWD}" | docker login -u shankyash --password-stdin
                             docker push ${IMAGE_TAG}
-                            docker tag emailservice ${DOCKER_NAME}:latest
+                            docker tag ${IMAGE_TAG} ${DOCKER_NAME}:latest
                             docker push ${DOCKER_NAME}:latest
                         '''
                     }
@@ -171,6 +176,7 @@ pipeline {
             steps {
                 dir('src/emailservice') {
                     sh '''
+                        command -v trivy || exit 0
                         trivy image -f json -o trivy-image.json ${IMAGE_TAG}
                         trivy image -f table -o trivy-image.txt ${IMAGE_TAG}
                     '''
@@ -187,14 +193,14 @@ pipeline {
     /* ================= EMAIL ================= */
     post {
         always {
-            emailext(
-                subject: "Pipeline ${currentBuild.currentResult}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
+            emailext (
+                subject: "Emailservice Pipeline ${currentBuild.currentResult} | Build #${env.BUILD_NUMBER}",
                 body: """
                     <h3>Emailservice DevSecOps Pipeline</h3>
                     <p><b>Status:</b> ${currentBuild.currentResult}</p>
+                    <p><b>Build:</b> #${env.BUILD_NUMBER}</p>
                     <p><b>Job:</b> ${env.JOB_NAME}</p>
-                    <p><b>Build:</b> ${env.BUILD_NUMBER}</p>
-                    <p><a href="${env.BUILD_URL}">View Build</a></p>
+                    <p><b>URL:</b> <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
                 """,
                 to: 'shankhwalkary11@gmail.com',
                 mimeType: 'text/html',
