@@ -73,24 +73,30 @@ pipeline {
         }
 
         // --- Install Dependencies ---
-        stage("Install Dependencies") {
-            steps {
-                dir('src/emailservice') {
-                    sh 'python3 -m pip install --user -r requirements.txt || true'
-                }
-            }
-        }
+     stage('Install Dependencies') {
+  steps {
+    dir('src/emailservice') {
+      sh '''
+        . .venv/bin/activate
+        pip install -r requirements.txt
+      '''
+    }
+  }
+}
 
         // --- Dependency Scan (Safety) ---
-        stage("Safety Dependency Scan") {
-            steps {
-                dir('src/emailservice') {
-                    sh '''
-                    python3 -m pip install --user safety
-                    safety check --full-report --output json > safety-report.json || true
-                    '''
-                }
-            }
+    stage('Safety Dependency Scan') {
+  steps {
+    dir('src/emailservice') {
+      sh '''
+        . .venv/bin/activate
+        pip install safety
+        safety check -r requirements.txt --json > safety-report.json || true
+      '''
+    }
+  }
+}
+
             post {
                 always {
                     archiveArtifacts 'src/emailservice/safety-report.json'
