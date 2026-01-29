@@ -13,22 +13,26 @@ pipeline {
 
     stages {
 
+        /* ================= CLEAN ================= */
         stage('Clean Workspace') {
-            steps { cleanWs() }
+            steps {
+                cleanWs()
+            }
         }
 
+        /* ================= GIT ================= */
         stage('Git Checkout') {
             steps {
                 git branch: 'main', url: 'https://github.com/Yash11max/Ecom-Deploy.git'
             }
         }
 
-        // ---- Python Virtual Environment (ONE TIME) ----
-        stage('Setup Python venv') {
+        /* ================= PYTHON VENV ================= */
+        stage('Setup Python Virtualenv') {
             steps {
                 dir('src/emailservice') {
                     sh '''
-                        python3.11 -m venv .venv
+                        python3 -m venv .venv
                         . .venv/bin/activate
                         pip install --upgrade pip
                     '''
@@ -36,7 +40,7 @@ pipeline {
             }
         }
 
-        // ---- SAST: Bandit ----
+        /* ================= BANDIT ================= */
         stage('Bandit Security Scan') {
             steps {
                 dir('src/emailservice') {
@@ -49,12 +53,12 @@ pipeline {
             }
             post {
                 always {
-                    archiveArtifacts 'src/emailservice/bandit-report.json'
+                    archiveArtifacts artifacts: 'src/emailservice/bandit-report.json', allowEmptyArchive: true
                 }
             }
         }
 
-        // ---- SonarQube ----
+        /* ================= SONAR ================= */
         stage('SonarQube Analysis') {
             steps {
                 dir('src/emailservice') {
@@ -79,7 +83,7 @@ pipeline {
             }
         }
 
-        // ---- Install App Dependencies ----
+        /* ================= INSTALL DEPS ================= */
         stage('Install Dependencies') {
             steps {
                 dir('src/emailservice') {
@@ -91,7 +95,7 @@ pipeline {
             }
         }
 
-        // ---- SCA: Safety ----
+        /* ================= SAFETY ================= */
         stage('Safety Dependency Scan') {
             steps {
                 dir('src/emailservice') {
@@ -109,15 +113,17 @@ pipeline {
             }
         }
 
-        // ---- Trivy FS ----
+        /* ================= TRIVY FS ================= */
         stage('Trivy File Scan') {
             steps {
                 dir('src/emailservice') {
                     sh '''
                         trivy fs . \
                           --severity CRITICAL,HIGH \
+                          --exit-code 0 \
                           --scanners vuln,misconfig,secret \
-                          --exit-code 1 > trivy-fs-report.txt || true
+                          -f table \
+                          -o trivy-fs-report.txt
                     '''
                 }
             }
@@ -128,30 +134,31 @@ pipeline {
             }
         }
 
-        // ---- Docker Build ----
+        /* ================= DOCKER BUILD ================= */
         stage('Build Docker Image') {
             steps {
                 dir('src/emailservice') {
                     script {
                         env.IMAGE_TAG = "${DOCKER_NAME}:${BUILD_NUMBER}"
                         sh '''
-                            docker build -t ${IMAGE_NAME} .
-                            docker tag ${IMAGE_NAME} ${IMAGE_TAG}
+                            docker rmi -f emailservice || true
+                            docker build -t emailservice .
+                            docker tag emailservice ${IMAGE_TAG}
                         '''
                     }
                 }
             }
         }
 
-        // ---- Push Image ----
-        stage('Push to DockerHub') {
+        /* ================= DOCKER PUSH ================= */
+        stage('Push Docker Image') {
             steps {
                 dir('src/emailservice') {
-                    withCredentials([string(credentialsId: 'docker-cred', variable: 'dockerpwd')]) {
+                    withCredentials([string(credentialsId: 'docker-cred', variable: 'DOCKER_PASS')]) {
                         sh '''
-                            echo "$dockerpwd" | docker login -u shankyash --password-stdin
+                            docker login -u shankyash -p ${DOCKER_PASS}
                             docker push ${IMAGE_TAG}
-                            docker tag ${IMAGE_NAME} ${DOCKER_NAME}:latest
+                            docker tag emailservice ${DOCKER_NAME}:latest
                             docker push ${DOCKER_NAME}:latest
                         '''
                     }
@@ -159,35 +166,45 @@ pipeline {
             }
         }
 
-        // ---- Trivy Image Scan ----
-        stage('Trivy Scan Image') {
+        /* ================= TRIVY IMAGE ================= */
+        stage('Trivy Image Scan') {
             steps {
                 dir('src/emailservice') {
                     sh '''
-                        trivy image -f json -o trivy-image-email.json ${IMAGE_TAG}
-                        trivy image -f table -o trivy-image-email.txt ${IMAGE_TAG}
+                        trivy image -f json -o trivy-image.json ${IMAGE_TAG}
+                        trivy image -f table -o trivy-image.txt ${IMAGE_TAG}
                     '''
                 }
             }
             post {
                 always {
-                    archiveArtifacts 'src/emailservice/trivy-image-email.*'
+                    archiveArtifacts 'src/emailservice/trivy-image.*'
                 }
             }
         }
     }
 
+    /* ================= EMAIL ================= */
     post {
         always {
-            emailext (
+            emailext(
                 subject: "Pipeline ${currentBuild.currentResult}: ${env.JOB_NAME} #${env.BUILD_NUMBER}",
                 body: """
-                    <p>Emailservice DevSecOps pipeline completed.</p>
-                    <p>Status: ${currentBuild.currentResult}</p>
-                    <p>Build URL: <a href="${env.BUILD_URL}">${env.BUILD_URL}</a></p>
+                    <h3>Emailservice DevSecOps Pipeline</h3>
+                    <p><b>Status:</b> ${currentBuild.currentResult}</p>
+                    <p><b>Job:</b> ${env.JOB_NAME}</p>
+                    <p><b>Build:</b> ${env.BUILD_NUMBER}</p>
+                    <p><a href="${env.BUILD_URL}">View Build</a></p>
                 """,
                 to: 'shankhwalkary11@gmail.com',
-                mimeType: 'text/html'
+                mimeType: 'text/html',
+                attachmentsPattern: '''
+                    src/emailservice/bandit-report.json,
+                    src/emailservice/safety-report.json,
+                    src/emailservice/trivy-fs-report.txt,
+                    src/emailservice/trivy-image.json,
+                    src/emailservice/trivy-image.txt
+                '''
             )
         }
     }
