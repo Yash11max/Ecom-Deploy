@@ -31,7 +31,7 @@ google-auth-httplib2==0.1.0
     # via
     #   google-api-python-client
     #   google-cloud-profiler
-google-cloud-profiler==4.0.0
+google-cloud-profiler==4.0.0 ; python_version < "3.11"
     # via -r requirements.in
 google-cloud-trace==1.11.1
     # via -r requirements.in
