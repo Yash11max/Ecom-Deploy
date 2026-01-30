@@ -16,7 +16,7 @@ metadata:
 spec:
   ingressClassName: alb
   rules:
-    - host: shopeasypro.online
+    - host: shop.shopeasypro.online
       http:
         paths:
           - path: /
