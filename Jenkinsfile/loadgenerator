@@ -3,7 +3,7 @@ pipeline {
 
     tools {
         // Python already installed via system packages
-        jdk 'jdk17'
+        jdk 'jdk 17'
     }
 
     environment {
