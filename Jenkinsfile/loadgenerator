@@ -32,8 +32,8 @@ pipeline {
             steps {
                 dir('src/loadgenerator') {
                     sh '''
-                        python --version
-                        python -m venv .venv
+                        python3 --version
+                        python3 -m venv .venv
                         . .venv/bin/activate
                         pip install --upgrade pip
                     '''
